@@ -47,15 +47,20 @@ export default function HomePage() {
   const [liveOrder, setLiveOrder] = useState<{ name: string; city: string; product: string } | null>(null);
   const [showLiveOrder, setShowLiveOrder] = useState(false);
 
-  // Zustand স্টোর
-  const { items, increaseQuantity, decreaseQuantity, removeFromCart, clearCart, totalPrice } = useCartStore() as any;
-  const totalItems = useCartStore((state: any) => typeof state.totalItems === 'function' ? state.totalItems() : 0);
+  // Zustand স্টোর থেকে স্টেট ও অ্যাকশনসমূহ নিয়ে আসা
+  const items = useCartStore((state: any) => state.items || []);
+  const increaseQuantity = useCartStore((state: any) => state.increaseQuantity);
+  const decreaseQuantity = useCartStore((state: any) => state.decreaseQuantity);
+  const removeFromCart = useCartStore((state: any) => state.removeFromCart);
+  const clearCart = useCartStore((state: any) => state.clearCart);
+  const totalPrice = useCartStore((state: any) => typeof state.totalPrice === 'function' ? state.totalPrice() : 0);
+  const totalItems = useCartStore((state: any) => typeof state.totalItems === 'function' ? state.totalItems() : items.length);
 
   // অর্ডার কনফার্ম এবং ইনভয়েস প্রিন্ট করার ফাংশন
   const handleOrderAndInvoice = () => {
     if (items.length === 0) return;
 
-    const totalAmount = totalPrice();
+    const totalAmount = totalPrice;
     const orderId = "EYAN-" + Math.floor(100000 + Math.random() * 900000);
     const currentDate = new Date().toLocaleDateString('bn-BD');
 
@@ -89,7 +94,7 @@ export default function HomePage() {
             </div>
             <div style="text-align: right;">
               <div style="font-size: 20px; font-weight: bold; color: #3b82f6;">ক্যাশ মেমো / ইনভয়েস</div>
-              <p style="margin: 5px 0 0 0; font-size: 14px;">অर्डर আইডি: <strong>${orderId}</strong></p>
+              <p style="margin: 5px 0 0 0; font-size: 14px;">অর্ডার আইডি: <strong>${orderId}</strong></p>
             </div>
           </div>
           
@@ -248,7 +253,7 @@ export default function HomePage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center font-bold">লোড হচ্ছে...</div>;
+    return <div className="min-h-screen flex items-center justify-center font-bold">로드 হচ্ছে... (লোড হচ্ছে...)</div>;
   }
 
   return (
@@ -334,7 +339,7 @@ export default function HomePage() {
 
             return (
               <div key={product.id} className={`rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between border ${darkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'}`}>
-                <Link href={`/product/${product.id}`} className="cursor-pointer block group relative">
+                <div className="block group relative">
                   {isOutOfStock && <div className="absolute top-4 left-4 z-10 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-sm">Out of Stock</div>}
                   
                   <div className={`overflow-hidden h-72 bg-gray-100 ${isOutOfStock ? 'opacity-50' : ''}`}>
@@ -343,7 +348,7 @@ export default function HomePage() {
                   
                   <div className="p-6 pb-2">
                     <p className="text-[10px] uppercase tracking-widest text-blue-500 font-bold mb-1">{product.category}</p>
-                    <h3 className={`text-base font-bold mb-2 transition-colors line-clamp-1 ${darkMode ? 'text-white group-hover:text-blue-400' : 'text-gray-800 group-hover:text-blue-600'}`}>{product.name}</h3>
+                    <h3 className={`text-base font-bold mb-2 transition-colors line-clamp-1 ${darkMode ? 'text-white' : 'text-gray-800'}`}>{product.name}</h3>
                     <p className={`text-xs line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.description}</p>
                     
                     <p className={`text-[11px] font-bold mt-2 ${isOutOfStock ? 'text-red-500' : product.stock <= 3 ? 'text-amber-500 animate-pulse' : 'text-green-500'}`}>
@@ -365,7 +370,7 @@ export default function HomePage() {
                       </div>
                     )}
                   </div>
-                </Link>
+                </div>
                 
                 <div className="p-6 pt-0">
                   <div className="flex justify-between items-center mt-4">
@@ -419,14 +424,14 @@ export default function HomePage() {
         
         {items.length > 0 && (
           <div className={`p-6 border-t flex flex-col gap-3 ${darkMode ? 'border-gray-800 bg-gray-900/80' : 'border-gray-100 bg-gray-50/80'}`}>
-            <div className="flex justify-between items-center mb-1"><span className="text-sm font-medium opacity-70">Subtotal Amount:</span><span className="text-xl font-black text-blue-600 dark:text-blue-400 transition-all duration-300 transform scale-105">৳{totalPrice()}</span></div>
+            <div className="flex justify-between items-center mb-1"><span className="text-sm font-medium opacity-70">Subtotal Amount:</span><span className="text-xl font-black text-blue-600 dark:text-blue-400 transition-all duration-300 transform scale-105">৳{totalPrice}</span></div>
             
-            {/* 🌟 নতুন যোগ করা ক্যাশ মেমো / ইনভয়েস বাটন */}
+            {/* 🌟 ক্যাশ মেমো / ইনভয়েস বাটন */}
             <button 
               onClick={handleOrderAndInvoice}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md shadow-blue-500/10"
             >
-              <Download size={14} /> অর্ডার কনফার্ম ও ইনভয়েস নিন
+              <Download size={14} /> অর্ডার কনফার্ম ও ইনভয়েস নিন
             </button>
 
             <div className="flex gap-3">
