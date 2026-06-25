@@ -2,7 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { useCartStore } from '../store/cartStore'; 
-import { ShoppingCart, Search, Sun, Moon, CheckCircle, AlertTriangle, X, Trash2, ShoppingBag, Menu, Flame, Clock } from 'lucide-react'; // 👈 নতুন আইকন যোগ করা হয়েছে
+import { ShoppingCart, Search, Sun, Moon, CheckCircle, AlertTriangle, X, Trash2, ShoppingBag, Menu, Flame, Clock, Download } from 'lucide-react'; 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -18,7 +18,7 @@ type Product = {
   image_url: string;
   category: string;
   stock: number;
-  max_stock?: number; // 👈 প্রোগ্রেস বারের জন্য ব্যাকআপ স্টক
+  max_stock?: number; 
 };
 
 export default function HomePage() {
@@ -51,19 +51,122 @@ export default function HomePage() {
   const { items, increaseQuantity, decreaseQuantity, removeFromCart, clearCart, totalPrice } = useCartStore() as any;
   const totalItems = useCartStore((state: any) => typeof state.totalItems === 'function' ? state.totalItems() : 0);
 
+  // অর্ডার কনফার্ম এবং ইনভয়েস প্রিন্ট করার ফাংশন
+  const handleOrderAndInvoice = () => {
+    if (items.length === 0) return;
+
+    const totalAmount = totalPrice();
+    const orderId = "EYAN-" + Math.floor(100000 + Math.random() * 900000);
+    const currentDate = new Date().toLocaleDateString('bn-BD');
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const invoiceHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice ${orderId}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; }
+          .invoice-box { max-width: 800px; margin: auto; border: 1px solid #eee; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, .15); }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; }
+          .title { color: #1e3a8a; font-size: 28px; font-weight: bold; }
+          .details { margin-top: 20px; display: flex; justify-content: space-between; font-size: 14px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+          th { background-color: #f1f5f9; color: #1e3a8a; text-align: left; padding: 12px; font-weight: bold; }
+          td { padding: 12px; border-bottom: 1px solid #cbd5e1; font-size: 14px; }
+          .total { text-align: right; margin-top: 30px; font-size: 18px; font-weight: bold; color: #1e3a8a; }
+          .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #718096; border-top: 1px dashed #cbd5e1; padding-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-box">
+          <div class="header">
+            <div>
+              <div class="title">EYAN SHOP</div>
+              <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">আপনার বিশ্বস্ত অনলাইন শপ</p>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 20px; font-weight: bold; color: #3b82f6;">ক্যাশ মেমো / ইনভয়েস</div>
+              <p style="margin: 5px 0 0 0; font-size: 14px;">অर्डर আইডি: <strong>${orderId}</strong></p>
+            </div>
+          </div>
+          
+          <div class="details">
+            <div>
+              <strong>বিলিং ঠিকানা:</strong><br>
+              সম্মানিত গ্রাহক<br>
+              বাংলাদেশ
+            </div>
+            <div style="text-align: right;">
+              <strong>তারিখ:</strong> ${currentDate}<br>
+              <strong>পেমেন্ট মেথড:</strong> ক্যাশ অন ডেলিভারি (COD)
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>প্রোডাক্টের নাম</th>
+                <th style="text-align: center;">পরিমাণ</th>
+                <th style="text-align: right;">মূল্য</th>
+                <th style="text-align: right;">মোট</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((item: any) => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td style="text-align: center;">${item.quantity || 1}</td>
+                  <td style="text-align: right;">৳${item.price}</td>
+                  <td style="text-align: right;">৳${item.price * (item.quantity || 1)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="total">
+            সর্বমোট মূল্য: ৳${totalAmount}
+          </div>
+
+          <div class="footer">
+            আমাদের শপ থেকে কেনাকাটা করার জন্য আপনাকে অসংখ্য ধন্যবাদ!<br>
+            কোথাও কোনো সমস্যা হলে আমাদের সাপোর্ট নাম্বারে যোগাযোগ করুন।
+          </div>
+        </div>
+        
+        <script>
+          window.onload = function() { 
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(invoiceHTML);
+    printWindow.document.close();
+
+    clearCart();
+    setIsCartOpen(false);
+    triggerToast("আপনার অর্ডারটি সফলভাবে কনফার্ম হয়েছে এবং ইনভয়েস জেনারেট হয়েছে! 🎉", 'success');
+  };
+
   // ফ্ল্যাশ সেল টাইমার কাউন্টডাউন ইফেক্ট
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 3 * 60 * 60)); // সময় শেষ হলে আবার রিস্টার্ট হবে
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 3 * 60 * 60)); 
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // লাইভ পারচেজ পপ-আপ নোটিফিকেশন ইফেক্ট (প্রতি ১২ সেকেন্ড পর পর নতুন পপ-আপ আসবে)
+  // লাইভ পারচেজ পপ-আপ নোটিফিকেশন ইফেক্ট
   useEffect(() => {
     const names = ["আরিফ", "তানভীর", "সাজিদ", "রাশেদ", "ফাহিম", "ইমরান", "রাফি", "নাহিদ"];
     const cities = ["ঢাকা", "চট্টগ্রাম", "সিলেট", "খুলনা", "রাজশাহী", "রংপুর", "বরিশাল", "গাজীপুর"];
-    const fakeProducts = ["পোলো শার্ট", "প্রিমিয়াম জিন্স", "ব্লাক হুডি", "ক্যাজুয়াল শার্ট", "চিনো প্যান্ট"];
+    const fakeProducts = ["পোলো শার্ট", "প্রিমিয়াম জিন্স", "ব্লাক হুডি", "ক্যাজুয়াল শার্ট", "চিনো প্যান্ট"];
 
     const triggerLiveNotification = () => {
       const randomName = names[Math.floor(Math.random() * names.length)];
@@ -73,11 +176,9 @@ export default function HomePage() {
       setLiveOrder({ name: randomName, city: randomCity, product: randomProduct });
       setShowLiveOrder(true);
 
-      // ৫ সেকেন্ড পর নোটিফিকেশনটি নেমে যাবে
       setTimeout(() => setShowLiveOrder(false), 5000);
     };
 
-    // সাইটে ঢোকার ৪ সেকেন্ড পর প্রথমটা আসবে, তারপর প্রতি ১২ সেকেন্ড পর পর আসবে
     const initialTimeout = setTimeout(triggerLiveNotification, 4000);
     const interval = setInterval(triggerLiveNotification, 12000);
 
@@ -93,7 +194,6 @@ export default function HomePage() {
         const { data, error } = await supabase.from('products').select('*');
         if (error) throw error;
         if (data) {
-          // প্রোগ্রেস বারের জন্য একটি ফেক ম্যাক্সিমাম স্টক (যেমন: স্টক + ১০) সেট করে রাখছি
           const enrichedProducts = data.map((p: Product) => ({
             ...p,
             max_stock: p.stock > 0 ? p.stock + Math.floor(Math.random() * 8) + 3 : 10
@@ -125,7 +225,6 @@ export default function HomePage() {
     setFilteredProducts(result);
   }, [searchQuery, selectedCategory, products]);
 
-  // ফরম্যাটেড টাইম (hh:mm:ss) বানানোর ফাংশন
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -148,6 +247,10 @@ export default function HomePage() {
     increaseQuantity(item.id);
   };
 
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center font-bold">লোড হচ্ছে...</div>;
+  }
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'bg-gray-950 text-gray-100' : 'bg-gray-50 text-gray-900'}`}>
       
@@ -161,7 +264,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 🔔 সাকসেস/ওয়ার্নিং টোস্ট নোটিফিকেশন */}
+      {/* 🔔 টোস্ট নোটিফিকেশন */}
       <div className={`fixed top-24 right-6 z-50 transform transition-all duration-500 ease-out flex items-center gap-3 px-5 py-4 rounded-2xl shadow-xl border ${
         showToast ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-12 opacity-0 scale-90 pointer-events-none'
       } ${darkMode ? 'bg-gray-900 border-gray-800 text-white' : 'bg-white border-gray-100 text-black'}`}>
@@ -169,7 +272,7 @@ export default function HomePage() {
         <span className="text-sm font-bold tracking-wide">{toastMessage}</span>
       </div>
 
-      {/* 🛒 ২. লাইভ পারচেজ পপ-আপ নোটিফিকেশন (বাম কোণায়) */}
+      {/* 🛒 ২. লাইভ পারচেজ পপ-আপ নোটিফিকেশন */}
       <div className={`fixed bottom-6 left-6 z-50 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 text-gray-800 dark:text-gray-100 p-4 rounded-2xl shadow-2xl max-w-xs flex items-center gap-3 transform transition-all duration-500 ease-out ${
         showLiveOrder ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 scale-90 pointer-events-none'
       }`}>
@@ -226,8 +329,6 @@ export default function HomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {filteredProducts.map((product: Product) => {
             const isOutOfStock = product.stock <= 0;
-            
-            // 📊 ৩. স্টক প্রোগ্রেস বার পার্সেন্টেজ ক্যালকুলেশন
             const maxStk = product.max_stock || 15;
             const soldPercent = Math.min(95, Math.max(40, ((maxStk - product.stock) / maxStk) * 100));
 
@@ -245,12 +346,10 @@ export default function HomePage() {
                     <h3 className={`text-base font-bold mb-2 transition-colors line-clamp-1 ${darkMode ? 'text-white group-hover:text-blue-400' : 'text-gray-800 group-hover:text-blue-600'}`}>{product.name}</h3>
                     <p className={`text-xs line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.description}</p>
                     
-                    {/* 📦 লাইভ স্টক টেক্সট */}
                     <p className={`text-[11px] font-bold mt-2 ${isOutOfStock ? 'text-red-500' : product.stock <= 3 ? 'text-amber-500 animate-pulse' : 'text-green-500'}`}>
                       {isOutOfStock ? 'Sold Out' : product.stock <= 3 ? `Only ${product.stock} items left!` : `In Stock: ${product.stock}`}
                     </p>
 
-                    {/* 📊 অ্যানিমেটেড স্টক প্রোগ্রেস বার (স্টক আউট না থাকলে দেখাবে) */}
                     {!isOutOfStock && (
                       <div className="mt-3 space-y-1">
                         <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
@@ -271,7 +370,7 @@ export default function HomePage() {
                 <div className="p-6 pt-0">
                   <div className="flex justify-between items-center mt-4">
                     <span className={`text-lg font-black ${darkMode ? 'text-white' : 'text-gray-900'}`}>৳{product.price}</span>
-                    <button disabled={isOutOfStock} onClick={() => { useCartStore.getState().addToCart({ ...product, size: 'M' }); triggerToast(`"${product.name}" সফলভাবে কার্টে যোগ হয়েছে!`, 'success'); setIsCartOpen(true); }} className={`px-4 py-2.5 rounded-xl transition-all font-bold text-xs shadow-sm ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed border-none' : darkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-800'}`}>
+                    <button disabled={isOutOfStock} onClick={() => { useCartStore.getState().addToCart({ ...product, size: 'M' }); triggerToast(`"${product.name}" সফলভাবে কার্টে যোগ হয়েছে!`, 'success'); setIsCartOpen(true); }} className={`px-4 py-2.5 rounded-xl transition-all font-bold text-xs shadow-sm ${isOutOfStock ? 'bg-gray-300 text-gray-500 cursor-not-allowed border-none' : darkMode ? 'bg-white text-black hover:bg-gray-200' : 'bg-black text-white hover:bg-gray-800'}`}>
                       {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
                     </button>
                   </div>
@@ -295,7 +394,7 @@ export default function HomePage() {
 
       {/* 🛒 ডান পাশের স্লাইডিং কার্ট ড্রয়ার প্যানেল */}
       <div onClick={() => setIsCartOpen(false)} className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-50 transition-opacity duration-300 ${isCartOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} />
-      <div className={`fixed top-0 right-0 h-full w-full sm:w-[420px] shadow-2xl z-50 transform transition-transform duration-500 ease-in-out flex flex-col justify-between border-l ${isCartOpen ? 'translate-x-0' : 'translate-x-full'} ${darkMode ? 'bg-gray-900 border-gray-800 text-white' : 'bg-white border-gray-100 text-black'}`}>
+      <div className={`fixed top-0 right-0 h-full w-full sm:w-[420px] shadow-2xl z-50 transform transition-transform duration-500 ease-in-out flex flex-col justify-between border-l ${isCartOpen ? 'translate-x-0' : '-translate-x-full'} ${darkMode ? 'bg-gray-900 border-gray-800 text-white' : 'bg-white border-gray-100 text-black'}`}>
         <div className="p-6 flex justify-between items-center border-b border-gray-100 dark:border-gray-800"><div className="flex items-center gap-2"><ShoppingBag size={20} className="text-blue-500" /><h2 className="text-lg font-black tracking-wide">Your Cart ({totalItems})</h2></div><button onClick={() => setIsCartOpen(false)} className={`p-1.5 rounded-xl border transition-colors ${darkMode ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' : 'bg-gray-50 border-gray-100 hover:bg-gray-100'}`}><X size={18} /></button></div>
         <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-none">
           {items.length === 0 ? (
@@ -317,12 +416,22 @@ export default function HomePage() {
             ))
           )}
         </div>
+        
         {items.length > 0 && (
-          <div className={`p-6 border-t ${darkMode ? 'border-gray-800 bg-gray-900/80' : 'border-gray-100 bg-gray-50/80'}`}>
-            <div className="flex justify-between items-center mb-4"><span className="text-sm font-medium opacity-70">Subtotal Amount:</span><span className="text-xl font-black text-blue-600 dark:text-blue-400 transition-all duration-300 transform scale-105">৳{totalPrice()}</span></div>
+          <div className={`p-6 border-t flex flex-col gap-3 ${darkMode ? 'border-gray-800 bg-gray-900/80' : 'border-gray-100 bg-gray-50/80'}`}>
+            <div className="flex justify-between items-center mb-1"><span className="text-sm font-medium opacity-70">Subtotal Amount:</span><span className="text-xl font-black text-blue-600 dark:text-blue-400 transition-all duration-300 transform scale-105">৳{totalPrice()}</span></div>
+            
+            {/* 🌟 নতুন যোগ করা ক্যাশ মেমো / ইনভয়েস বাটন */}
+            <button 
+              onClick={handleOrderAndInvoice}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md shadow-blue-500/10"
+            >
+              <Download size={14} /> অর্ডার কনফার্ম ও ইনভয়েস নিন
+            </button>
+
             <div className="flex gap-3">
               <button onClick={() => clearCart()} className={`px-4 py-3 rounded-xl text-xs font-bold border transition-colors ${darkMode ? 'border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white' : 'border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-black'}`}>Clear</button>
-              <Link href="/cart" className="flex-1 bg-blue-600 text-white font-bold text-xs py-3 rounded-xl hover:bg-blue-700 transition shadow-md shadow-blue-500/20 text-center flex items-center justify-center gap-1">Go to Checkout ➔</Link>
+              <Link href="/cart" className="flex-1 bg-black dark:bg-white text-white dark:text-black font-bold text-xs py-3 rounded-xl hover:opacity-90 transition text-center flex items-center justify-center gap-1">Go to Checkout ➔</Link>
             </div>
           </div>
         )}
